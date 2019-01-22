@@ -1,0 +1,31 @@
+version: 2
+
+installDockerClient: &installDockerClient
+  name: Install Docker client
+  command: |
+    set -x
+    VER="18.06.1-ce"
+    curl -L -o /tmp/docker-$VER.tgz https://download.docker.com/linux/static/stable/x86_64/docker-$VER.tgz
+    tar -xz -C /tmp -f /tmp/docker-$VER.tgz
+    sudo mv /tmp/docker/* /usr/bin
+
+attachWorkspace: &attachWorkspace
+  at: ../target
+
+jobs:
+  build:
+    docker:
+      - image: circleci/openjdk:11-jdk-node-browsers
+
+    working_directory: ~/fati
+    steps:
+      - checkout
+      - run: mvn clean package
+      - attach_workspace: *attachWorkspace
+      - setup_remote_docker:
+          docker_layer_caching: true
+      - run: *installDockerClient
+      - run: docker build -t fati:latest .
+      - run: docker login -u $DOCKER_HUB_USERNAME -p $DOCKER_HUB_PASSWORD
+      - run: docker tag fati:latest fatibabayeva/fati
+      - run: docker push fatibabayeva/fati
